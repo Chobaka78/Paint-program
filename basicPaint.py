@@ -32,6 +32,8 @@ stamp = "no stamp"
 background = "nothing"
 size = 10
 
+undo1 = "nothing"
+
 ## Colours
 
 RED=(255,0,0)
@@ -80,6 +82,8 @@ saveIcon = image.load("images/icons/save.jpg")
 backIcon = image.load("images/icons/back_button.png")
 paint_brushPic = image.load("images/paintbrush.png")
 markerPic = image.load("images/marker_tool.png")
+Undo = image.load("images/Undo.png")
+Redo = image.load("images/Redo.png")
 
 #########################################################
 
@@ -194,6 +198,8 @@ markerRect = Rect(510,650,40,40)
 loadRect = Rect(25,135,40,40)
 saveRect = Rect(100,135,40,40)
 show_colourrect = Rect(593,607,80,40)
+undoRect = Rect(25,195,40,40)
+redoRect = Rect(100,195,40,40)
 
 #################################
 
@@ -242,6 +248,8 @@ backT = transform.scale(backIcon,(40,40))
 textT = transform.scale(textPic,(40,40))
 paintT = transform.scale(paint_brushPic,(40,40))
 markerT = transform.scale(markerPic,(40,40))
+UndoPic = transform.scale(Undo,(40,40))
+RedoPic = transform.scale(Redo,(40,40))
 
 ########################################## Transforming the stamp pics only 
 
@@ -334,6 +342,8 @@ downArrowRect = Rect(15,540,170,25)
 
 running = True
 
+undo=[screen.subsurface(canvasRect).copy()]
+redo = []
 ## omx and omy is basically just mx and my but you need to put omx and omy
 
 omx=300 
@@ -354,17 +364,19 @@ while running:
         if evt.type == QUIT:            
             running = False
             
-        if evt.type==KEYDOWN:            
-            if evt.key==K_LCTRL:
-                draw.rect(screen,WHITE,canvasRect)
+        if evt.type == KEYDOWN:            
                 
-            elif evt.key==K_RIGHT and tool == "eraser":
+            if evt.key==K_RIGHT and tool == "eraser":
                 eradius+=5
 
             elif evt.key==K_LEFT and tool == "eraser":
                 eradius-=5
 
         if evt.type == MOUSEBUTTONDOWN:
+
+            if evt.button == 1:
+                canvas = screen.subsurface(canvasRect).copy()
+
             click = True
             sx,sy = evt.pos
 
@@ -419,9 +431,15 @@ while running:
 
             background = screen.copy()
 
+        if evt.type == MOUSEBUTTONUP:
+            if evt.button == 1:
+                if canvasRect.collidepoint((mx, my)):
+                    undo.append(canvas.copy())
+                    
+
     mx,my=mouse.get_pos()
 
-    print(mx,my)## to calculate the x and y of anthing if needed (helpful)
+    ##print(mx,my)## to calculate the x and y of anthing if needed (helpful)
 
     mb=mouse.get_pressed() ## shorter version of the mouse button check
 
@@ -452,6 +470,11 @@ while running:
         draw.rect(screen,WHITE,screRect)
         screen.blit(loadT,loadRect)
         screen.blit(saveT,saveRect)
+        screen.blit(UndoPic,undoRect)
+        screen.blit(RedoPic,redoRect)
+        draw.rect(screen,BLACK,undoRect,2)
+        draw.rect(screen,BLACK,redoRect,2)
+
 
     elif tool == "background" and page == 0:
         draw.rect(screen,BLACK,screB_Rect)
@@ -770,6 +793,8 @@ while running:
         if canvasRect.collidepoint(mx,my): ## make sure all the lines stay within the canvas
             screen.set_clip(canvasRect) ## only the canvas can be updated
 
+
+
             if tool=="pencil": ## if the tool selected is a pencil
                 draw.line(screen,col,(omx,omy),(mx,my),3) ## draw lines with a thick ness of 3
 
@@ -784,7 +809,15 @@ while running:
             elif tool == "rectangle":            
                 screen.fill((0,0,0))
                 screen.blit(background,(0,0))
-                draw.rect(screen,col,Rect(sx,sy,mx-sx,my-sy),t)
+                distx = mx-sx
+                disty = my-sy
+                draw.rect(screen,col,Rect(sx,sy,distx,disty),t)
+                ### to add the squares to the end of the rectangle
+                draw.rect(screen,col,Rect(sx-(t/2)+1,sy-(t/2)+1,t,t),0)
+                draw.rect(screen,col,Rect((sx+distx)-(t/2)-(1/2),sy-(t/2)+1,t,t),0)
+                draw.rect(screen,col,Rect(sx-(t/2)+1,(sy+disty)-(t/2)-(1/2),t,t),0)
+                draw.rect(screen,col,Rect((sx+distx)-(t/2),(sy+disty)-(t/2),t,t),0)
+            
 
             elif tool == "ellipse":             
                 screen.fill((0,0,0))
@@ -830,17 +863,29 @@ while running:
                         y = int(my+l/dist*ay)
                         draw.circle(screen,col,(x,y),size)
 
-            elif tool == "marker":
-                if canvasRect.collidepoint(mx,my):
-                    fx,fy = sx-mx,sy-my
-                    dist = max(abs(fx),abs(fy))
-                    cover = Surface((680,450),SRCALPHA)
-                    size = 10
-                    for j in range (dist):
-                        x = int(mx+j/dist*fx)
-                        y = int(mx+j/dist*fy)
+##            elif tool == "marker":
+##                if canvasRect.collidepoint(mx,my):
+##                    fx,fy = sx-mx,sy-my
+##                    dist = max(abs(fx),abs(fy))
+##                    
+##                    size = 10
+##                    for j in range (dist):
+##                        x = int(mx+j/dist*fx)
+##                        y = int(mx+j/dist*fy)
+##                        cover = Surface((680,450),SRCALPHA)
+##                        draw.circle(cover,(col[0],col[1],col[2],2),(size//2,size//2),size//2)
+##                        screen.blit(cover,(x+size//2,y+size//2))
+            elif tool=="marker":
+                #screen.set_clip(canvasRect)
+                if mb[0]==1:
+                    dx,dy = omx-mx,omy-my
+                    dist = max(abs(dx),abs(dy))
+                    for i in range(dist):
+                        x=int(mx+i/dist*dx)
+                        y=int(my+i/dist*dy)
+                        cover = Surface((size,size),SRCALPHA)
                         draw.circle(cover,(col[0],col[1],col[2],2),(size//2,size//2),size//2)
-                        screen.blit(cover,(x+size//2,y+size//2))
+                        screen.blit(cover,(x-size//2,y-size//2))
 
 
 ############################################################ using tool for tools 1
@@ -1026,6 +1071,27 @@ while running:
                     print("loading error")
                     pass
 
+############################################## Redo function
+            if redoRect.collidepoint(mx,my):
+                print("undolist",len(undo))
+                if len(redo)> 0:
+                    print("bef",len(redo))
+                    undo.append(redo.pop(-1))
+                    print("aft",len(redo))
+                    transfer = undo.pop(-1)
+                    screen.blit(transfer, canvasRect)
+                    
+
+############################################# Undo function
+            if undoRect.collidepoint(mx,my):
+              if len(undo) >= 1:
+                   
+                    print("undolist- bef----",len(undo))
+                    transfer = undo.pop(-1)
+                    redo.append(transfer)
+                    screen.blit(transfer, canvasRect)
+                    print("undolist- aft----",len(undo))
+
 #####Changing the colour
 
     if mb[0]==1: ## check if left click
@@ -1033,6 +1099,11 @@ while running:
         if wheelRect.collidepoint(mx,my): ## check if mouse colides with any point on the colour rectangle 
             col=screen.get_at((mx,my)) ## where ever the mouse collided take the pixel for that (in r g b form)
             print(col) ## print default colour
+
+    # if tool == "eraser" and canvasRect.collidepoint(mx,my):
+    #             screen.fill((0,0,0))
+    #             screen.blit(background,(0,0))
+    #             draw.circle(screen,col,(mx,my),eradius,1)
            
     omx=mx ## setting omx to mx                          
     omy=my ## setting omy to my
